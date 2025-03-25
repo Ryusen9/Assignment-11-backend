@@ -37,6 +37,9 @@ async function run() {
     const userCollection = client
       .db("MarathonMate")
       .collection("userCollection");
+    const marathonEventCollection = client
+      .db("MarathonMate")
+      .collection("marathonEvent");
     //!user collection setup
     app.get("/users", async (req, res) => {
       const users = await userCollection.find().toArray();
@@ -53,6 +56,16 @@ async function run() {
       const newUser = req.body;
       const result = await userCollection.insertOne(newUser);
       res.send(result);
+    });
+
+    // !Marathon Event
+    app.get("/marathonEvents", async (req, res) => {
+      const limit = parseInt(req.query.limit) || 0;
+      const events =
+        limit > 0
+          ? await marathonEventCollection.find().limit(limit).toArray()
+          : await marathonEventCollection.find().toArray();
+      res.send(events);
     });
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
