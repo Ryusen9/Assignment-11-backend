@@ -61,11 +61,23 @@ async function run() {
     // !Marathon Event
     app.get("/marathonEvents", async (req, res) => {
       const limit = parseInt(req.query.limit) || 0;
-      const events =
-        limit > 0
-          ? await marathonEventCollection.find().limit(limit).toArray()
-          : await marathonEventCollection.find().toArray();
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+      let events;
+      if (limit > 0) {
+        events = await marathonEventCollection.find().limit(limit).toArray();
+      } else {
+        events = await marathonEventCollection
+          .find()
+           .skip((page - 1) * size)
+          .limit(size)
+          .toArray();
+      }
       res.send(events);
+    });
+    app.get("/eventCount", async (req, res) => {
+      const count = await marathonEventCollection.estimatedDocumentCount();
+      res.send({ count });
     });
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
