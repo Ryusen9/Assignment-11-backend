@@ -62,10 +62,19 @@ async function run() {
     });
     app.get("/userApplications", async (req, res) => {
       const userEmail = req.query.userEmail;
-      const query = { userEmail: userEmail };
-      const applications = await userApplicationsCollection.find(query).toArray();
+      const query = { applicantEmail: userEmail };
+      const applications = await userApplicationsCollection
+        .find(query)
+        .toArray();
       res.send(applications);
     });
+
+    app.post("/userApplications", async (req, res) => {
+      const newApplication = req.body;
+      const result = await userApplicationsCollection.insertOne(newApplication);
+      res.send(result);
+    });
+
     // !Marathon Event
     app.get("/marathonEvents", async (req, res) => {
       const limit = parseInt(req.query.limit) || 0;
