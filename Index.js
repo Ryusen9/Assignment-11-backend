@@ -20,7 +20,7 @@ const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASSWORD;
 //!Database connection
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${dbUser}:${dbPassword}@cluster0.q4a9c.mongodb.net/?appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -40,6 +40,9 @@ async function run() {
     const marathonEventCollection = client
       .db("MarathonMate")
       .collection("marathonEvent");
+    const userApplicationsCollection = client
+      .db("MarathonMate")
+      .collection("userApplications");
     //!user collection setup
     app.get("/users", async (req, res) => {
       const users = await userCollection.find().toArray();
@@ -57,7 +60,12 @@ async function run() {
       const result = await userCollection.insertOne(newUser);
       res.send(result);
     });
-
+    app.get("/userApplications", async (req, res) => {
+      const userEmail = req.query.userEmail;
+      const query = { userEmail: userEmail };
+      const applications = await userApplicationsCollection.find(query).toArray();
+      res.send(applications);
+    });
     // !Marathon Event
     app.get("/marathonEvents", async (req, res) => {
       const limit = parseInt(req.query.limit) || 0;
@@ -69,15 +77,58 @@ async function run() {
       } else {
         events = await marathonEventCollection
           .find()
-           .skip((page - 1) * size)
+          .skip((page - 1) * size)
           .limit(size)
           .toArray();
       }
       res.send(events);
     });
+    app.post("/marathonEvents", async (req, res) => {
+      const newEvent = req.body;
+      const result = await marathonEventCollection.insertOne(newEvent);
+      res.send(result);
+    });
     app.get("/eventCount", async (req, res) => {
       const count = await marathonEventCollection.estimatedDocumentCount();
       res.send({ count });
+    });
+    app.get("/event/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await marathonEventCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      result ? res.send(result) : res.status(404).send("No Event found");
+    });
+    app.get("/myMarathon", async (req, res) => {
+      const userEmail = req.query.userEmail;
+      const result = await marathonEventCollection
+        .find({
+          userEmail: userEmail,
+        })
+        .toArray();
+      res.send(result);
+    });
+    app.delete("/myMarathon", async (req, res) => {
+      const userEmail = req.query.userEmail;
+      const id = req.query.id;
+      const result = await marathonEventCollection.deleteOne({
+        _id: new ObjectId(id),
+        userEmail: userEmail,
+      });
+      res.send(result);
+    });
+    app.patch("/myMarathon", async (req, res) => {
+      const userEmail = req.query.userEmail;
+      const id = req.query.id;
+      const updatedEvent = req.body;
+      const result = await marathonEventCollection.updateOne(
+        {
+          _id: new ObjectId(id),
+          userEmail: userEmail,
+        },
+        { $set: updatedEvent }
+      );
+      res.send(result);
     });
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
