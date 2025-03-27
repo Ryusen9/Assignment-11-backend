@@ -75,6 +75,23 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/userApplications", async (req, res) => {
+      const userEmail = req.query.userEmail;
+      const marathonId = req.query.marathonId;
+      const query = { applicantEmail: userEmail, marathonId: marathonId };
+      const result = await userApplicationsCollection.deleteOne(query);
+      res.send(result);
+    });
+    app.patch("/userApplications", async (req, res) => {
+      const userEmail = req.query.userEmail;
+      const marathonId = req.query.marathonId;
+      const updatedInfo = req.body;
+      const query = { applicantEmail: userEmail, marathonId: marathonId };
+      const result = await userApplicationsCollection.updateOne(query, {
+        $set: updatedInfo,
+      });
+      res.send(result);
+    });
     // !Marathon Event
     app.get("/marathonEvents", async (req, res) => {
       const limit = parseInt(req.query.limit) || 0;
