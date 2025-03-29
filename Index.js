@@ -13,12 +13,11 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:5175",
-      "https://marathonmate-76eca.web.app/",
-      "https://marathonmate-76eca.firebaseapp.com/",
+      "https://marathonmate-76eca.web.app",
+      "https://marathonmate-76eca.firebaseapp.com",
+      "https://assignment-11-backend-three.vercel.app"
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 app.use(express.json());
