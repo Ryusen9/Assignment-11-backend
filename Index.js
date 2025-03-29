@@ -95,18 +95,16 @@ async function run() {
     // !Marathon Event
     app.get("/marathonEvents", async (req, res) => {
       const limit = parseInt(req.query.limit) || 0;
-      const page = parseInt(req.query.page);
-      const size = parseInt(req.query.size);
-      let events;
+      const page = parseInt(req.query.page) || 1;
+      const size = parseInt(req.query.size) || 10;
+      const sortOrder = req.query.sortOrder === "newest" ? -1 : 1;
+      let query = marathonEventCollection.find();
       if (limit > 0) {
-        events = await marathonEventCollection.find().limit(limit).toArray();
+        query = query.limit(limit);
       } else {
-        events = await marathonEventCollection
-          .find()
-          .skip((page - 1) * size)
-          .limit(size)
-          .toArray();
+        query = query.skip((page - 1) * size).limit(size);
       }
+      const events = await query.sort({ createdAt: sortOrder }).toArray();
       res.send(events);
     });
     app.post("/marathonEvents", async (req, res) => {
