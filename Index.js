@@ -10,7 +10,12 @@ const app = express();
 //!middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5175"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5175",
+      "https://marathonmate-76eca.web.app/",
+      "https://marathonmate-76eca.firebaseapp.com/",
+    ],
     credentials: true,
   })
 );
@@ -18,6 +23,20 @@ app.use(express.json());
 app.use(cookieParser());
 const dbUser = process.env.DB_USER;
 const dbPassword = process.env.DB_PASSWORD;
+//!cookie verification
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized access" });
+  }
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
 //!Database connection
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -43,24 +62,47 @@ async function run() {
     const userApplicationsCollection = client
       .db("MarathonMate")
       .collection("userApplications");
+    //!JWT token setup
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_SECRET, {
+        expiresIn: "10h",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV,
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
+    app.post("/logout", (req, res) => {
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV,
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
     //!user collection setup
     app.get("/users", async (req, res) => {
       const users = await userCollection.find().toArray();
       res.send(users);
     });
-    app.get("/usersInfo", async (req, res) => {
+    app.get("/usersInfo", verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const user = await userCollection.findOne(query);
       res.send(user);
     });
 
-    app.post("/users", async (req, res) => {
+    app.post("/users", verifyToken, async (req, res) => {
       const newUser = req.body;
       const result = await userCollection.insertOne(newUser);
       res.send(result);
     });
-    app.get("/userApplications", async (req, res) => {
+    app.get("/userApplications", verifyToken, async (req, res) => {
       const userEmail = req.query.userEmail;
       const query = { applicantEmail: userEmail };
       const applications = await userApplicationsCollection
@@ -69,20 +111,20 @@ async function run() {
       res.send(applications);
     });
 
-    app.post("/userApplications", async (req, res) => {
+    app.post("/userApplications", verifyToken, async (req, res) => {
       const newApplication = req.body;
       const result = await userApplicationsCollection.insertOne(newApplication);
       res.send(result);
     });
 
-    app.delete("/userApplications", async (req, res) => {
+    app.delete("/userApplications", verifyToken, async (req, res) => {
       const userEmail = req.query.userEmail;
       const marathonId = req.query.marathonId;
       const query = { applicantEmail: userEmail, marathonId: marathonId };
       const result = await userApplicationsCollection.deleteOne(query);
       res.send(result);
     });
-    app.patch("/userApplications", async (req, res) => {
+    app.patch("/userApplications", verifyToken, async (req, res) => {
       const userEmail = req.query.userEmail;
       const marathonId = req.query.marathonId;
       const updatedInfo = req.body;
@@ -107,7 +149,7 @@ async function run() {
       const events = await query.sort({ createdAt: sortOrder }).toArray();
       res.send(events);
     });
-    app.post("/marathonEvents", async (req, res) => {
+    app.post("/marathonEvents", verifyToken, async (req, res) => {
       const newEvent = req.body;
       const result = await marathonEventCollection.insertOne(newEvent);
       res.send(result);
@@ -123,7 +165,7 @@ async function run() {
       });
       result ? res.send(result) : res.status(404).send("No Event found");
     });
-    app.get("/myMarathon", async (req, res) => {
+    app.get("/myMarathon", verifyToken, async (req, res) => {
       const userEmail = req.query.userEmail;
       const result = await marathonEventCollection
         .find({
@@ -132,7 +174,7 @@ async function run() {
         .toArray();
       res.send(result);
     });
-    app.delete("/myMarathon", async (req, res) => {
+    app.delete("/myMarathon", verifyToken, async (req, res) => {
       const userEmail = req.query.userEmail;
       const id = req.query.id;
       const result = await marathonEventCollection.deleteOne({
@@ -141,7 +183,7 @@ async function run() {
       });
       res.send(result);
     });
-    app.patch("/myMarathon", async (req, res) => {
+    app.patch("/myMarathon", verifyToken, async (req, res) => {
       const userEmail = req.query.userEmail;
       const id = req.query.id;
       const updatedEvent = req.body;
@@ -155,9 +197,9 @@ async function run() {
       res.send(result);
     });
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
